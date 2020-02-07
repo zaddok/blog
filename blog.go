@@ -42,4 +42,6 @@ type BlogManager interface {
 	AddEntry(entry *Entry, session security.Session) error
 	UpdateEntry(event *Entry, session security.Session) error
 	DeleteEntry(uuid string, session security.Session) error
+
+	NewEntry() Entry
 }

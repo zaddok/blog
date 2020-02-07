@@ -34,6 +34,10 @@ type GaeBlogManager struct {
 	slugCache  gcache.Cache
 }
 
+func (em *GaeBlogManager) NewEntry() Entry {
+	return &GaeEntry{}
+}
+
 func (em *GaeBlogManager) AccessManager() security.AccessManager {
 	return em.am
 }
@@ -42,7 +46,7 @@ func (em *GaeBlogManager) GetEntry(uuid string, session security.Session) (Entry
 	item := new(GaeEntry)
 	k := datastore.NameKey("Entry", uuid, nil)
 	k.Namespace = session.Site()
-	err := em.client.Get(em.ctx, k, &item)
+	err := em.client.Get(em.ctx, k, item)
 	if err == datastore.ErrNoSuchEntity {
 		return nil, nil
 	} else if err != nil {
@@ -53,11 +57,19 @@ func (em *GaeBlogManager) GetEntry(uuid string, session security.Session) (Entry
 
 func (em *GaeBlogManager) GetRecentEntries(limit int, session security.Session) ([]Entry, error) {
 	var items []Entry
-	q := datastore.NewQuery("Entry").Namespace(session.Site())
-	_, err := em.client.GetAll(em.ctx, q, &items)
-	if err != nil {
-		return nil, err
+
+	q := datastore.NewQuery("Entry").Namespace(session.Site()).Filter("Date <", time.Now()).Limit(limit)
+	it := em.client.Run(em.ctx, q)
+	for {
+		e := new(GaeEntry)
+		if _, err := it.Next(e); err == iterator.Done {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		items = append(items, e)
 	}
+
 	return items[:], nil
 }
 
@@ -65,9 +77,15 @@ func (em *GaeBlogManager) GetFutureEntries(session security.Session) ([]Entry, e
 	var items []Entry
 
 	q := datastore.NewQuery("Entry").Namespace(session.Site()).Filter("Date >", time.Now())
-	_, err := em.client.GetAll(em.ctx, q, &items)
-	if err != nil {
-		return nil, err
+	it := em.client.Run(em.ctx, q)
+	for {
+		e := new(GaeEntry)
+		if _, err := it.Next(e); err == iterator.Done {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		items = append(items, e)
 	}
 
 	return items, nil
@@ -178,7 +196,7 @@ func (em *GaeBlogManager) AddEntry(entry Entry, session security.Session) error 
 	if err := em.am.AddEntityChangeLog(bulk, session); err != nil {
 		return err
 	}
-	if _, err := em.client.Put(em.ctx, k, entry); err != nil {
+	if _, err := em.client.Put(em.ctx, k, entry.(*GaeEntry)); err != nil {
 		return err
 	}
 
