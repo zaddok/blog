@@ -39,8 +39,8 @@ type BlogManager interface {
 	GetEntriesByAuthor(personUuid string, session security.Session) ([]Entry, error)
 	SearchEntries(query string, session security.Session) ([]Entry, error)
 
-	AddEntry(entry *Entry, session security.Session) error
-	UpdateEntry(event *Entry, session security.Session) error
+	AddEntry(entry Entry, session security.Session) error
+	UpdateEntry(event Entry, session security.Session) error
 	DeleteEntry(uuid string, session security.Session) error
 
 	NewEntry() Entry
