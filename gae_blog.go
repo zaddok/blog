@@ -297,7 +297,7 @@ func (em *GaeBlogManager) DeleteEntry(uuid string, session security.Session) err
 	return nil
 }
 
-func (em *GaeBlogManager) GetEntryByAuthor(personUuid string, session security.Session) ([]Entry, error) {
+func (em *GaeBlogManager) GetEntriesByAuthor(personUuid string, session security.Session) ([]Entry, error) {
 	items := make([]Entry, 0)
 
 	q := datastore.NewQuery("Entry").Namespace(session.Site()).Filter("Author =", personUuid).Limit(5000)
