@@ -25,7 +25,7 @@ func Slugify(title string) string {
 
 func SplitTags(tags string) []string {
 
-	parts := strings.FieldsFunc(title, func(c rune) bool {
+	parts := strings.FieldsFunc(tags, func(c rune) bool {
 		return c == '/' ||
 			c == '\\' || c == '.' || c == ',' ||
 			c == '_' || c == '!' || c == '\'' ||
