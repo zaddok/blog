@@ -19,9 +19,7 @@ type Entry interface {
 	Created() *time.Time
 	Updated() *time.Time
 
-	SetUuid(uuid string)
 	SetTitle(title string)
-	SetSlug(slug string)
 	SetDescription(description string)
 	SetTags(tags []string)
 	SetDate(date time.Time)

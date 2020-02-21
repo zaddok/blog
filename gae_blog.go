@@ -374,24 +374,20 @@ func (e *GaeEntry) Uuid() string {
 	return e.uuid
 }
 
-func (e *GaeEntry) SetUuid(uuid string) {
-	e.uuid = uuid
-}
-
 func (e *GaeEntry) Title() string {
 	return e.title
 }
 
 func (e *GaeEntry) SetTitle(title string) {
 	e.title = title
+	e.slug = Slugify(title)
 }
 
 func (e *GaeEntry) Slug() string {
+	if e.slug == "" && e.title != "" {
+		e.slug = Slugify(e.title)
+	}
 	return e.slug
-}
-
-func (e *GaeEntry) SetSlug(slug string) {
-	e.slug = slug
 }
 
 func (e *GaeEntry) Description() string {
