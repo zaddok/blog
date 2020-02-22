@@ -52,11 +52,18 @@ func (em *GaeBlogManager) GetEntry(uuid string, session security.Session) (Entry
 	} else if err != nil {
 		return nil, err
 	}
+	if item.authorUuid != "" {
+		item.author, err = em.am.GetPersonCached(item.authorUuid, session)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return item, nil
 }
 
 func (em *GaeBlogManager) GetRecentEntries(limit int, session security.Session) ([]Entry, error) {
 	var items []Entry
+	var err error
 
 	q := datastore.NewQuery("Entry").Namespace(session.Site()).Filter("Date <", time.Now()).Limit(limit)
 	it := em.client.Run(em.ctx, q)
@@ -67,6 +74,12 @@ func (em *GaeBlogManager) GetRecentEntries(limit int, session security.Session) 
 		} else if err != nil {
 			return nil, err
 		}
+		if e.authorUuid != "" {
+			e.author, err = em.am.GetPersonCached(e.authorUuid, session)
+			if err != nil {
+				return nil, err
+			}
+		}
 		items = append(items, e)
 	}
 
@@ -75,6 +88,7 @@ func (em *GaeBlogManager) GetRecentEntries(limit int, session security.Session) 
 
 func (em *GaeBlogManager) GetFutureEntries(session security.Session) ([]Entry, error) {
 	var items []Entry
+	var err error
 
 	q := datastore.NewQuery("Entry").Namespace(session.Site()).Filter("Date >", time.Now())
 	it := em.client.Run(em.ctx, q)
@@ -85,6 +99,12 @@ func (em *GaeBlogManager) GetFutureEntries(session security.Session) ([]Entry, e
 		} else if err != nil {
 			return nil, err
 		}
+		if e.authorUuid != "" {
+			e.author, err = em.am.GetPersonCached(e.authorUuid, session)
+			if err != nil {
+				return nil, err
+			}
+		}
 		items = append(items, e)
 	}
 
@@ -92,16 +112,23 @@ func (em *GaeBlogManager) GetFutureEntries(session security.Session) ([]Entry, e
 }
 
 func (em *GaeBlogManager) GetEntryBySlug(slug string, session security.Session) (Entry, error) {
-	var items []Entry
+	var items []GaeEntry
+	var err error
 
 	q := datastore.NewQuery("Entry").Namespace(session.Site()).Filter("Slug =", slug).Limit(1)
-	_, err := em.client.GetAll(em.ctx, q, &items)
+	_, err = em.client.GetAll(em.ctx, q, &items)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(items) > 0 {
-		return items[0], nil
+		if items[0].authorUuid != "" {
+			items[0].author, err = em.am.GetPersonCached(items[0].authorUuid, session)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return &items[0], nil
 	}
 	return nil, nil
 }
@@ -309,7 +336,8 @@ func (em *GaeBlogManager) GetEntriesByAuthor(personUuid string, session security
 	return items, nil
 }
 
-func (am *GaeBlogManager) SearchEntries(query string, session security.Session) ([]Entry, error) {
+func (em *GaeBlogManager) SearchEntries(query string, session security.Session) ([]Entry, error) {
+	var err error
 	results := make([]Entry, 0)
 
 	fields := strings.Fields(strings.ToLower(query))
@@ -321,7 +349,7 @@ func (am *GaeBlogManager) SearchEntries(query string, session security.Session) 
 		return results, nil
 	} else if len(fields) == 1 {
 		q := datastore.NewQuery("Entry").Namespace(session.Site()).Filter("SearchTags =", fields[0]).Limit(50)
-		it := am.client.Run(am.ctx, q)
+		it := em.client.Run(em.ctx, q)
 		for {
 			e := new(GaeEntry)
 			if _, err := it.Next(e); err == iterator.Done {
@@ -329,17 +357,29 @@ func (am *GaeBlogManager) SearchEntries(query string, session security.Session) 
 			} else if err != nil {
 				return nil, err
 			}
+			if e.authorUuid != "" {
+				e.author, err = em.am.GetPersonCached(e.authorUuid, session)
+				if err != nil {
+					return nil, err
+				}
+			}
 			results = append(results, e)
 		}
 	} else if len(fields) > 1 {
 		q := datastore.NewQuery("Entry").Namespace(session.Site()).Filter("SearchTags =", fields[0]).Filter("SearchTags =", fields[1]).Limit(50)
-		it := am.client.Run(am.ctx, q)
+		it := em.client.Run(em.ctx, q)
 		for {
 			e := new(GaeEntry)
 			if _, err := it.Next(e); err == iterator.Done {
 				break
 			} else if err != nil {
 				return nil, err
+			}
+			if e.authorUuid != "" {
+				e.author, err = em.am.GetPersonCached(e.authorUuid, session)
+				if err != nil {
+					return nil, err
+				}
 			}
 			results = append(results, e)
 		}
@@ -420,6 +460,9 @@ func (e *GaeEntry) Author() security.Person {
 
 func (e *GaeEntry) SetAuthor(author security.Person) {
 	e.author = author
+	if e.author != nil {
+		e.authorUuid = author.Uuid()
+	}
 }
 
 func (e *GaeEntry) Text() string {

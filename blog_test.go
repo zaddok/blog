@@ -97,6 +97,12 @@ func TestBlogEntry(t *testing.T) {
 		if ev.Date().Unix() != entry2.Date().Unix() {
 			t.Fatalf("GetEntrys() Incorrect end time, returned %v", ev.Date())
 		}
+		if ev.Author() == nil {
+			t.Fatalf("GetAuthor() returned nil")
+		}
+		if ev.Author().FirstName() != "Andrew" {
+			t.Fatalf("GetAuthor() returned %s, should return 'Andrew'", ev.Author().FirstName())
+		}
 	}
 
 	{
