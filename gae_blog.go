@@ -83,6 +83,19 @@ func (em *GaeBlogManager) GetRecentEntries(limit int, session security.Session) 
 		items = append(items, e)
 	}
 
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Date() != nil && items[j].Date() != nil {
+			return items[i].Date().Before(*items[j].Date())
+		}
+		if items[i].Date() != nil && items[j].Created() != nil {
+			return items[i].Date().Before(*items[j].Created())
+		}
+		if items[j].Date() != nil && items[i].Created() != nil {
+			return items[i].Created().Before(*items[j].Date())
+		}
+		return items[i].Created().Before(*items[j].Created())
+	})
+
 	return items[:], nil
 }
 
