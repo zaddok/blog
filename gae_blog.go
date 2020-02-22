@@ -261,8 +261,8 @@ func (em *GaeBlogManager) UpdateEntry(entry Entry, session security.Session) err
 	k := datastore.NameKey("Entry", entry.Uuid(), nil)
 	k.Namespace = session.Site()
 
-	var current Entry
-	err := em.client.Get(em.ctx, k, &current)
+	current := new(GaeEntry)
+	err := em.client.Get(em.ctx, k, current)
 	if err == datastore.ErrNoSuchEntity {
 		return errors.New("No entry has this uuid")
 	} else if err != nil {
@@ -304,7 +304,7 @@ func (em *GaeBlogManager) UpdateEntry(entry Entry, session security.Session) err
 
 		em.entryCache.Remove(entry.Uuid())
 		em.slugCache.Remove(entry.Slug())
-		if _, err := em.client.Put(em.ctx, k, &current); err != nil {
+		if _, err := em.client.Put(em.ctx, k, current); err != nil {
 			return err
 		}
 		em.entryCache.Set(entry.Uuid(), entry)

@@ -106,6 +106,31 @@ func TestBlogEntry(t *testing.T) {
 	}
 
 	{
+		ev, err := em.GetEntry(entry1.Uuid(), session)
+		if err != nil {
+			t.Fatalf("GetEntry() failed unexpectedly: %v", err)
+			return
+		}
+		if ev.Title() != entry1.Title() {
+			t.Fatalf("GetEntry() Incorrect name, returned %v", ev.Title())
+		}
+		ev.SetTitle("Updated title")
+		err = em.UpdateEntry(ev, session)
+		if err != nil {
+			t.Fatalf("UpdateEntry() failed unexpectedly: %v", err)
+			return
+		}
+		ev, err = em.GetEntry(entry1.Uuid(), session)
+		if err != nil {
+			t.Fatalf("GetEntry() failed unexpectedly: %v", err)
+			return
+		}
+		if ev.Title() != "Updated title" {
+			t.Fatalf("GetEntry() Incorrect name, returned %v", ev.Title())
+		}
+	}
+
+	{
 		entrys, err := em.GetRecentEntries(10, session)
 		if err != nil {
 			t.Fatalf("GetEntrys() failed unexpectedly: %v", err)
