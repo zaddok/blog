@@ -38,8 +38,13 @@ func SplitTags(tags string) []string {
 			c == '·' || c == '「' || c == '」' ||
 			c == '｜' || c == '|' || c == '%' ||
 			c == '：' || c == '；' ||
-			c == '?' || c == ' ' || c == '-'
+			c == '?' || c == '-'
 	})
 
-	return parts
+	results := []string{}
+	for _, p := range parts {
+		results = append(results, strings.TrimSpace(p))
+	}
+
+	return results
 }

@@ -560,12 +560,14 @@ func (e *GaeEntry) Save() ([]datastore.Property, error) {
 			Value: e.slug,
 		},
 		{
-			Name:  "Description",
-			Value: e.description,
+			Name:    "Description",
+			Value:   e.description,
+			NoIndex: true,
 		},
 		{
-			Name:  "Text",
-			Value: e.text,
+			Name:    "Text",
+			Value:   e.text,
+			NoIndex: true,
 		},
 		{
 			Name:  "Author",
