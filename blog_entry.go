@@ -203,14 +203,22 @@ func (e *GaeEntry) Save() ([]datastore.Property, error) {
 		props = append(props, datastore.Property{Name: "Updated", Value: e.updated})
 	}
 
-	searchTags := searchTags(e)
-	props = append(props, datastore.Property{Name: "SearchTags", Value: searchTags})
+	props = append(props, datastore.Property{Name: "SearchTags", Value: e.SearchTagsI()})
 
 	return props, nil
 }
 
-func searchTags(e *GaeEntry) []interface{} {
+func (e *GaeEntry) SearchTagsI() []interface{} {
+	searchTags := e.SearchTags()
 	var tags []interface{}
+	for _, tag := range searchTags {
+		tags = append(tags, tag)
+	}
+	return tags[:]
+}
+
+func (e *GaeEntry) SearchTags() []string {
+	var tags []string
 
 	for _, r := range strings.Fields(strings.ToLower(e.Title())) {
 		if r != "" {
@@ -239,5 +247,5 @@ func searchTags(e *GaeEntry) []interface{} {
 		}
 	}
 
-	return tags
+	return tags[:]
 }

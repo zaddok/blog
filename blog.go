@@ -25,6 +25,8 @@ type Entry interface {
 	SetDate(date time.Time)
 	SetAuthor(author security.Person)
 	SetText(text string)
+
+	SearchTags() []string
 }
 
 type BlogManager interface {

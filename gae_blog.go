@@ -94,6 +94,9 @@ func (em *GaeBlogManager) GetRecentEntries(limit int, session security.Session) 
 		return items[j].Created().Before(*items[i].Created())
 	})
 
+	if len(items) > limit {
+		return items[0:limit], nil
+	}
 	return items[:], nil
 }
 
@@ -119,7 +122,7 @@ func (em *GaeBlogManager) GetFutureEntries(session security.Session) ([]Entry, e
 		items = append(items, e)
 	}
 
-	return items, nil
+	return items[:], nil
 }
 
 func (em *GaeBlogManager) GetEntryBySlug(slug string, session security.Session) (Entry, error) {
@@ -344,7 +347,7 @@ func (em *GaeBlogManager) GetEntriesByAuthor(personUuid string, session security
 		return nil, err
 	}
 
-	return items, nil
+	return items[:], nil
 }
 
 func (em *GaeBlogManager) SearchEntries(query string, session security.Session) ([]Entry, error) {

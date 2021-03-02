@@ -2,6 +2,7 @@ package blog
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -12,28 +13,52 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/datastore"
 	"gitlab.com/montebo/security"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc"
 )
 
+func dumpSystemLog(am security.AccessManager, site string) {
+	session, _ := am.GetSystemSession(site, "Test", "Test")
+	items, _ := am.GetRecentSystemLog(session)
+	for _, i := range items {
+		fmt.Println(i)
+	}
+}
+
 var TestSite string
+var TestCqlKeyspace string
 var DebugPrint bool
 var projectId string
-var MockMail *security.MockSmtpServer
+var mockSmtpServer *security.MockSmtpServer
+var testCassandraHostname string = "127.0.0.1"
 
 const testSmtpPort = 8928
 const testSmtpHostname = "127.0.0.1"
 
 func TestMain(m *testing.M) {
-	var err error
+	if os.Getenv("CASSANDRA_HOSTNAME") != "" {
+		testCassandraHostname = os.Getenv("CASSANDRA_HOSTNAME")
+		fmt.Println("Cassandra hostname: ", testCassandraHostname)
+	}
 
-	MockMail, err = security.NewMockSmtpServer(testSmtpHostname, testSmtpPort)
+	//fmt.Println("starting mock smtp server")
+	srv, err := security.NewMockSmtpServer(testSmtpHostname, testSmtpPort)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	mockSmtpServer = srv
 
 	// Start datastore emulator
-	cmd := exec.Command("gcloud", "beta", "emulators", "datastore", "start", "--no-store-on-disk")
+	//fmt.Println("starting datastore emulator")
+	cmd := exec.Command("gcloud", "beta", "emulators", "datastore", "start", "--no-store-on-disk", "--consistency=1.0", "--quiet")
+	if err != nil {
+		fmt.Println("Failed creating pipe to datastore emulator.", err)
+		os.Exit(1)
+	}
+
 	stdout, err := cmd.StderrPipe()
 	if err != nil {
 		fmt.Println("Failed creating pipe to datastore emulator.", err)
@@ -43,60 +68,100 @@ func TestMain(m *testing.M) {
 		fmt.Println("Failed starting datastore emulator.", err)
 		os.Exit(1)
 	}
+	//fmt.Println("watching datastore emulator output")
 	scanner := bufio.NewScanner(stdout)
 	scanner.Split(bufio.ScanLines)
 	host := ""
+	output := ""
 	for scanner.Scan() {
 		m := scanner.Text()
+		output = output + m + "\n"
 		if m == "[datastore] Dev App Server is now running." {
-			fmt.Println(m)
+			//fmt.Println(m)
 			break
 		}
 		i := strings.Index(m, "DATASTORE_EMULATOR_HOST=")
 		if i > 0 {
 			host = m[i+24:]
-			fmt.Println(m)
-			fmt.Println(host + ".")
-			fmt.Println()
+			//fmt.Println(m)
+			//fmt.Println(host + ".")
+			//fmt.Println()
 		}
+	}
+	if host == "" {
+		fmt.Println("Failed reading host from gcloud datastore emulator")
+		fmt.Println(output)
+		return
 	}
 	projectId = host
 
 	// setup
 	TestSite = security.RandomString(10) + ".com"
+	TestCqlKeyspace = "test_" + security.RandomString(10)
 	DebugPrint = os.Getenv("DEBUG") != ""
-
-	defer func() {
-		MockMail.Stop()
-
-		// cleanup
-		url := "http://" + host + "/shutdown"
-		req, err := http.NewRequest("POST", url, nil)
-		b := &http.Client{}
-		resp, err := b.Do(req)
-		if err != nil {
-			fmt.Println("Failed POST'ing shutdown request to datastore emulator", err)
-			return
-		}
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		fmt.Println(string(body))
-	}()
 
 	code := m.Run()
 
-	fmt.Println("code:", code, "pid:", cmd.Process.Pid)
+	// cleanup
 
-	return
+	if DebugPrint {
+		fmt.Println("Dumping records")
+		var client *datastore.Client
+		ctx := context.Background()
+		if strings.LastIndex(projectId, ":") > 0 {
+			client, err = datastore.NewClient(ctx, "test", option.WithEndpoint(projectId),
+				option.WithoutAuthentication(),
+				option.WithGRPCDialOption(grpc.WithInsecure()))
+		} else {
+			client, err = datastore.NewClient(ctx, projectId)
+		}
+		if err != nil {
+			fmt.Printf("Failed to create client: %v", err)
+		}
+
+		q := datastore.NewQuery("__namespace__").KeysOnly()
+		namespaces, err := client.GetAll(ctx, q, nil)
+		if err != nil {
+			fmt.Printf("%v\n", err)
+		}
+		for _, ns := range namespaces {
+			q := datastore.NewQuery("").Namespace(ns.Name).KeysOnly().Limit(500)
+			keys, err := client.GetAll(ctx, q, nil)
+			if err != nil {
+				fmt.Printf("%v\n", err)
+				return
+			}
+			for _, k := range keys {
+				fmt.Printf("  %s key: %v\n", ns.Name, k)
+			}
+		}
+	}
+
+	url := "http://" + host + "/shutdown"
+	req, err := http.NewRequest("POST", url, nil)
+	b := &http.Client{}
+	resp, err := b.Do(req)
+	if err != nil {
+		fmt.Println("Failed POST'ing shutdown request to datastore emulator", err)
+		return
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	fmt.Println(string(body))
+
+	srv.Stop()
+
+	os.Exit(code)
 }
 
 func requireEnv(name string, t *testing.T) string {
 	if name == "GOOGLE_CLOUD_PROJECT" {
 		return projectId
 	}
+
 	value := os.Getenv(name)
 	if value == "" {
-		t.Fatalf(fmt.Sprintf("Environment variable required: %s", name))
+		fmt.Println("Test environment not configured properly. " + name + " not set.")
 	}
 	return value
 }
@@ -108,37 +173,6 @@ func inferLocation(t *testing.T) string {
 		location = "us-west2"
 	}
 	return location
-}
-
-func SetupBasicConnectorData(t *testing.T) {
-	am, err, _, _ := security.NewGaeAccessManager(projectId, inferLocation(t), time.Now().Location())
-	if err != nil {
-		t.Fatalf("NewGaeAccessManager() failed: %v", err)
-	}
-
-	am.Setting().Put(TestSite, "self.signup", "no")
-	am.Setting().Put(TestSite, "smtp.hostname", testSmtpHostname)
-	am.Setting().Put(TestSite, "smtp.port", fmt.Sprintf("%d", testSmtpPort))
-	am.Setting().Put(TestSite, "support_team.name", "SUPPORT_TEAM_NAME")
-	am.Setting().Put(TestSite, "support_team.email", "SUPPORT_TEAM_EMAIL@example.com")
-	//am.Setting().Put(TestSite, "smtp.user", requireEnv("SMTP_USER", t))
-	//am.Setting().Put(TestSite, "smtp.password", requireEnv("SMTP_PASSWORD", t))
-
-	_, err = am.AddPerson(TestSite, "connector_setup", "tmp", "connector_setup@example.com", "s1:s2:s3:s4:c1:c2:c3:c4:c5:c6", security.HashPassword("tmp1!aAfo"), "127.0.0.1", nil)
-	if err != nil {
-		t.Fatalf("AddPerson() failed: %v", err)
-	}
-	_, err = am.AddPerson(TestSite, "James", "Smith", "james@montebo.com", "s1:s2:s3:s4:c1:c2:c3:c4:c5:c6", security.HashPassword("3axf.qQfo"), "127.0.0.1", nil)
-	if err != nil {
-		t.Fatalf("AddPerson() failed: %v", err)
-	}
-	time.Sleep(time.Millisecond * 10)
-	_, _, err = am.Authenticate(TestSite, "connector_setup@example.com", "tmp1!aAfo", "127.0.0.1", "", "en-AU")
-	if err != nil {
-		t.Fatalf("Authenticate() failed: %v", err)
-	}
-
-	fmt.Println("Test data loaded")
 }
 
 func StringToDatePointer(text string) *time.Time {
