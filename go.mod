@@ -1,6 +1,6 @@
 module github.com/zaddok/blog
 
-go 1.13
+go 1.15
 
 require (
 	cloud.google.com/go/datastore v1.4.0
