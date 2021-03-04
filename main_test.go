@@ -98,6 +98,7 @@ func TestMain(m *testing.M) {
 	// setup
 	TestSite = security.RandomString(10) + ".com"
 	TestCqlKeyspace = "test_" + security.RandomString(10)
+	fmt.Println("keyspace:", TestCqlKeyspace)
 	DebugPrint = os.Getenv("DEBUG") != ""
 
 	code := m.Run()

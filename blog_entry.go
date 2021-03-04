@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/google/uuid"
+	"github.com/zaddok/base62"
 	"gitlab.com/montebo/security"
 )
 
@@ -21,6 +21,7 @@ type GaeEntry struct {
 	text        string
 	created     *time.Time
 	updated     *time.Time
+	deleted     bool
 
 	html   string
 	author security.Person
@@ -28,9 +29,7 @@ type GaeEntry struct {
 
 func (e *GaeEntry) Uuid() string {
 	if e.uuid == "" {
-		// TODO: Can this err out, and if so do what?
-		u, _ := uuid.NewUUID()
-		e.uuid = u.String()
+		e.uuid = base62.NewUuid()
 	}
 	return e.uuid
 }
@@ -79,6 +78,10 @@ func (e *GaeEntry) Author() security.Person {
 	return e.author
 }
 
+func (e *GaeEntry) AuthorUUID() string {
+	return e.authorUuid
+}
+
 func (e *GaeEntry) SetAuthor(author security.Person) {
 	e.author = author
 	if e.author != nil {
@@ -96,6 +99,14 @@ func (e *GaeEntry) SetText(text string) {
 
 func (e *GaeEntry) Html() string {
 	return e.text
+}
+
+func (e *GaeEntry) Deleted() bool {
+	return e.deleted
+}
+
+func (e *GaeEntry) SetDeleted(deleted bool) {
+	e.deleted = deleted
 }
 
 func (e *GaeEntry) Created() *time.Time {
@@ -152,6 +163,9 @@ func (e *GaeEntry) Load(ps []datastore.Property) error {
 		case "Text":
 			e.text = i.Value.(string)
 			break
+		case "Deleted":
+			e.deleted = i.Value.(bool)
+			break
 		}
 	}
 	return nil
@@ -180,6 +194,10 @@ func (e *GaeEntry) Save() ([]datastore.Property, error) {
 		{
 			Name:  "Author",
 			Value: e.authorUuid,
+		},
+		{
+			Name:  "Deleted",
+			Value: e.deleted,
 		},
 	}
 

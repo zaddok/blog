@@ -12,7 +12,7 @@ import (
 	"gitlab.com/montebo/security"
 )
 
-func NewCqlBlogManager(cql *gocql.Session, am security.AccessManager, log log.Log) *CqlBlogManager {
+func NewCqlBlogManager(cql *gocql.Session, am security.AccessManager, log log.Log) (*CqlBlogManager, error) {
 	s := &CqlBlogManager{
 		cql:        cql,
 		am:         am,
@@ -20,7 +20,31 @@ func NewCqlBlogManager(cql *gocql.Session, am security.AccessManager, log log.Lo
 		entryCache: gcache.New(200).LRU().Expiration(time.Second * 3600).Build(),
 		slugCache:  gcache.New(200).LRU().Expiration(time.Second * 3600).Build(),
 	}
-	return s
+
+	rows := cql.Query(`
+create table if not exists blog_entry (
+	site text,
+	uuid text,
+	slug text,
+	title text,
+	description text,
+	tags set<text>,
+	search_tags set<text>,
+	"date" timestamp,
+	created timestamp,
+	updated timestamp,
+	author text,
+	text text,
+	html text,
+	deleted boolean,
+	primary key ((site), uuid))
+`).Iter()
+	err := rows.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
 type CqlBlogManager struct {
@@ -42,9 +66,9 @@ func (bm *CqlBlogManager) AccessManager() security.AccessManager {
 func (bm *CqlBlogManager) GetEntry(uuid string, session security.Session) (Entry, error) {
 	var entry GaeEntry
 
-	rows := bm.cql.Query("select title, slug, description, tags, date, created, updated, author, text from blog_entry where uuid=?",
-		uuid).Iter()
-	if !rows.Scan(&entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text) {
+	rows := bm.cql.Query("select title, slug, description, tags, date, created, updated, author, text, deleted from blog_entry where site=? and uuid=?",
+		session.Site(), uuid).Iter()
+	if !rows.Scan(&entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text, &entry.deleted) {
 		return nil, rows.Close()
 	}
 
@@ -54,12 +78,17 @@ func (bm *CqlBlogManager) GetEntry(uuid string, session security.Session) (Entry
 		return nil, err
 	}
 
+	entry.uuid = uuid
+
 	if entry.authorUuid != "" {
 		entry.author, err = bm.am.GetPersonCached(entry.authorUuid, session)
 		if err != nil {
 			return nil, err
 		}
 	}
+
+	bm.entryCache.Set(entry.Uuid(), entry)
+	bm.slugCache.Set(entry.Slug(), entry)
 
 	return &entry, nil
 }
@@ -69,9 +98,9 @@ func (bm *CqlBlogManager) GetRecentEntries(limit int, session security.Session) 
 	var err error
 	now := time.Now()
 
-	rows := bm.cql.Query("select title, slug, description, tags, date, created, updated, author, text from blog_entry").Iter()
+	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text, deleted from blog_entry").Iter()
 	entry := &GaeEntry{}
-	for rows.Scan(&entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text) {
+	for rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text, &entry.deleted) {
 		if entry.date.Before(now) {
 			if entry.authorUuid != "" {
 				entry.author, err = bm.am.GetPersonCached(entry.authorUuid, session)
@@ -80,6 +109,9 @@ func (bm *CqlBlogManager) GetRecentEntries(limit int, session security.Session) 
 				}
 			}
 			items = append(items, entry)
+
+			bm.entryCache.Set(entry.Uuid(), entry)
+			bm.slugCache.Set(entry.Slug(), entry)
 		}
 	}
 
@@ -112,9 +144,9 @@ func (bm *CqlBlogManager) GetEntriesByAuthor(personUuid string, session security
 	var err error
 	now := time.Now()
 
-	rows := bm.cql.Query("select title, slug, description, tags, date, created, updated, author, text from blog_entry where author=?", personUuid).Iter()
+	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text, deleted from blog_entry where site=? and author=?", session.Site(), personUuid).Iter()
 	entry := &GaeEntry{}
-	for rows.Scan(&entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text) {
+	for rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text, &entry.deleted) {
 		if entry.date.After(now) {
 			if entry.authorUuid != "" {
 				entry.author, err = bm.am.GetPersonCached(entry.authorUuid, session)
@@ -164,9 +196,9 @@ func (bm *CqlBlogManager) SearchEntries(query string, session security.Session) 
 		return nil, nil
 	}
 
-	rows := bm.cql.Query("select title, slug, description, tags, date, created, updated, author, text from blog_entry where search_tags=?", fields).Iter()
+	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text, deleted from blog_entry where search_tags=?", fields).Iter()
 	entry := &GaeEntry{}
-	for rows.Scan(&entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text) {
+	for rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text, &entry.deleted) {
 		if entry.authorUuid != "" {
 			entry.author, err = bm.am.GetPersonCached(entry.authorUuid, session)
 			if err != nil {
@@ -202,9 +234,9 @@ func (bm *CqlBlogManager) GetFutureEntries(session security.Session) ([]Entry, e
 	var err error
 	now := time.Now()
 
-	rows := bm.cql.Query("select title, slug, description, tags, date, created, updated, author, text from blog_entry").Iter()
+	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text from blog_entry").Iter()
 	entry := &GaeEntry{}
-	for rows.Scan(&entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text) {
+	for rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text) {
 		if entry.date.After(now) {
 			if entry.authorUuid != "" {
 				entry.author, err = bm.am.GetPersonCached(entry.authorUuid, session)
@@ -240,9 +272,9 @@ func (bm *CqlBlogManager) GetFutureEntries(session security.Session) ([]Entry, e
 func (bm *CqlBlogManager) GetEntryBySlug(slug string, session security.Session) (Entry, error) {
 	var entry GaeEntry
 
-	rows := bm.cql.Query("select title, slug, description, tags, date, created, updated, author, text from blog_entry where slug=?",
+	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text from blog_entry where site=? and slug=?",
 		slug).Iter()
-	if !rows.Scan(&entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text) {
+	if !rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text) {
 		return nil, rows.Close()
 	}
 
@@ -258,6 +290,9 @@ func (bm *CqlBlogManager) GetEntryBySlug(slug string, session security.Session) 
 			return nil, err
 		}
 	}
+
+	bm.entryCache.Set(entry.Uuid(), entry)
+	bm.slugCache.Set(entry.Slug(), entry)
 
 	return &entry, nil
 }
@@ -341,8 +376,16 @@ func (bm *CqlBlogManager) AddEntry(entry Entry, session security.Session) error 
 		bulk.AddItem("Text", "", entry.Text())
 	}
 
+	if len(entry.Tags()) > 0 {
+		bulk.AddItem("Tags", "", strings.Join(entry.Tags(), ", "))
+	}
+
 	if entry.Author() != nil {
 		bulk.AddItem("Author", "", entry.Author().Uuid())
+	}
+
+	if entry.Deleted() {
+		bulk.AddBoolItem("Deleted", false, true)
 	}
 
 	// TODO: Technically should be in a transaction
@@ -351,7 +394,7 @@ func (bm *CqlBlogManager) AddEntry(entry Entry, session security.Session) error 
 	}
 
 	rows := bm.cql.Query(
-		"update blog_entry set title=?, slug=?, description=?, tags=?, date=?, created=?, updated=?, author=?, text=?, search_tags=? where uuid=?",
+		"update blog_entry set title=?, slug=?, description=?, tags=?, date=?, created=?, updated=?, author=?, text=?, html=?, search_tags=?, deleted=? where site=? and uuid=?",
 		entry.Title(),
 		entry.Slug(),
 		entry.Description(),
@@ -359,9 +402,12 @@ func (bm *CqlBlogManager) AddEntry(entry Entry, session security.Session) error 
 		entry.Date(),
 		entry.Created(),
 		entry.Updated(),
-		entry.Author(),
+		entry.AuthorUUID(),
 		entry.Text(),
+		entry.Html(),
 		entry.SearchTags(),
+		entry.Deleted(),
+		session.Site(),
 		entry.Uuid()).Iter()
 	err := rows.Close()
 	if err != nil {
@@ -385,10 +431,9 @@ func (bm *CqlBlogManager) UpdateEntry(entry Entry, session security.Session) err
 	if entry.Text() == "" {
 		return errors.New("Entry must contain text")
 	}
-
 	var current GaeEntry
-	rows := bm.cql.Query("select title, slug, description, tags, date, created, updated, author, text from blog_entry where uuid=?",
-		entry.Uuid()).Iter()
+	rows := bm.cql.Query("select title, slug, description, tags, date, created, updated, author, deleted, text, html from blog_entry where site=? and uuid=?",
+		session.Site(), entry.Uuid()).Iter()
 	if !rows.Scan(
 		&current.title,
 		&current.slug,
@@ -398,13 +443,16 @@ func (bm *CqlBlogManager) UpdateEntry(entry Entry, session security.Session) err
 		&current.created,
 		&current.updated,
 		&current.authorUuid,
-		&current.text) {
+		&current.deleted,
+		&current.text,
+		&current.html) {
 		err := rows.Close()
 		if err == nil {
-			return errors.New("No entry has this uuid")
+			return errors.New("No entry has uuid " + entry.Uuid() + " on site " + session.Site())
 		}
 		return err
 	}
+	current.uuid = entry.Uuid()
 	err := rows.Close()
 	if err != nil {
 		return err
@@ -444,9 +492,8 @@ func (bm *CqlBlogManager) UpdateEntry(entry Entry, session security.Session) err
 		}
 
 		bm.slugCache.Remove(entry.Slug())
-
 		rows := bm.cql.Query(
-			"update blog_entry set title=?, slug=?, description=?, tags=?, date=?, created=?, updated=?, author=?, text=? where uuid=?",
+			"update blog_entry set title=?, slug=?, description=?, tags=?, date=?, created=?, updated=?, author=?, text=?, html=?, deleted=?, search_tags=? where site=? and uuid=?",
 			current.Title(),
 			current.Slug(),
 			current.Description(),
@@ -454,9 +501,12 @@ func (bm *CqlBlogManager) UpdateEntry(entry Entry, session security.Session) err
 			current.Date(),
 			current.Created(),
 			current.Updated(),
-			current.Author(),
+			current.AuthorUUID(),
 			current.Text(),
+			current.Html(),
+			current.Deleted(),
 			current.SearchTags(),
+			session.Site(),
 			current.Uuid()).Iter()
 		err := rows.Close()
 		if err != nil {

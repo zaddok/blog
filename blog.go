@@ -14,8 +14,10 @@ type Entry interface {
 	Tags() []string
 	Date() *time.Time
 	Author() security.Person
+	AuthorUUID() string
 	Text() string
 	Html() string
+	Deleted() bool
 	Created() *time.Time
 	Updated() *time.Time
 
@@ -25,6 +27,7 @@ type Entry interface {
 	SetDate(date time.Time)
 	SetAuthor(author security.Person)
 	SetText(text string)
+	SetDeleted(deleted bool)
 
 	SearchTags() []string
 }

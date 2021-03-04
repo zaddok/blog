@@ -31,7 +31,10 @@ func TestBlogEntry(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewCqlAccessManager() failed: %v", err)
 		}
-		bm := NewCqlBlogManager(cql, am, l)
+		if err != nil {
+			t.Fatalf("NewCqlBlogManager() failed: %v", err)
+		}
+		bm, err := NewCqlBlogManager(cql, am, l)
 		testBlogEntry(am, bm, t)
 	}
 
@@ -74,6 +77,7 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 	entry0.SetText("Does _this_ blog entry need some *text*?")
 	entry0.SetDate(*StringToDatePointer("2000/1/1"))
 	entry0.SetAuthor(p1)
+	entry0.SetTags([]string{"a", "b"})
 	err = bm.AddEntry(entry0, session)
 	if err != nil {
 		t.Fatalf("AddEntry() failed unexpectedly: %v", err)
@@ -85,6 +89,7 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 	entry1.SetDescription("Location 1")
 	entry1.SetText("Some *text* for this blog.")
 	entry1.SetDate(*StringToDatePointer("2000/1/2"))
+	entry1.SetTags([]string{"c", "d"})
 	entry1.SetAuthor(p2)
 	err = bm.AddEntry(entry1, session)
 	if err != nil {
@@ -107,7 +112,7 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 	{
 		ev, err := bm.GetEntry(entry2.Uuid(), session)
 		if err != nil {
-			t.Fatalf("AddEntry() failed unexpectedly: %v", err)
+			t.Fatalf("GetEntry() failed unexpectedly: %v", err)
 			return
 		}
 		if ev.Title() != entry2.Title() {
@@ -128,19 +133,31 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 	}
 
 	{
+		eci, _ := bm.GetRecentEntries(10, session)
+		if len(eci) != 2 {
+			t.Fatalf("We expect 2 entries here, not %d", len(eci))
+		}
+
 		ev, err := bm.GetEntry(entry1.Uuid(), session)
 		if err != nil {
 			t.Fatalf("GetEntry() failed unexpectedly: %v", err)
-			return
 		}
 		if ev.Title() != entry1.Title() {
 			t.Fatalf("GetEntry() Incorrect name, returned %v", ev.Title())
 		}
+		if ev.Uuid() != entry1.Uuid() {
+			t.Fatalf("GetEntry() Incorrect uuid, returned %v", ev.Uuid())
+		}
 		ev.SetTitle("Updated title")
+		ev.SetTags([]string{"z", "x", "y"})
 		err = bm.UpdateEntry(ev, session)
 		if err != nil {
-			t.Fatalf("UpdateEntry() failed unexpectedly: %v", err)
+			t.Fatalf("%s UpdateEntry() failed unexpectedly: %v", am.Type(), err)
 			return
+		}
+		eci, _ = bm.GetRecentEntries(10, session)
+		if len(eci) != 2 {
+			t.Fatalf("We expect 2 entries here, not %d", len(eci))
 		}
 		ev, err = bm.GetEntry(entry1.Uuid(), session)
 		if err != nil {
@@ -182,7 +199,10 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 			t.Fatalf("GetEntrys() Did not return one entrys. Returned %d", len(entrys))
 		}
 		if entrys[0].Date().Year() != 2100 {
-			t.Fatalf("GetEntrys() Did not return correct future entry. Returned  entry on %v", entrys[0].Date())
+			t.Fatalf("GetEntrys() Did not return correct future entry. Returned  entry on %v, expected %v", entrys[0].Date(), entry2.Uuid())
+		}
+		if entrys[0].Uuid() != entry2.Uuid() {
+			t.Fatalf("GetEntrys() Did not return correct future entry. %s != %s", entrys[0].Uuid(), entry2.Uuid())
 		}
 
 	}
