@@ -1,0 +1,14 @@
+version: '2.2'
+
+services:
+  cassandra:
+#    image: scylladb/scylla:latest
+    image: cassandra:latest
+    ports:
+      - "9042:9042" # native protocol clients
+      - "7000:7000" # cluster communication
+      - "7001:7001" # cluster communication (SSL)
+#    network: host
+#    network_mode: bridge
+#    env_file:
+#      - cassandra/cassandra.env

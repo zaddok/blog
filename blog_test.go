@@ -133,6 +133,31 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 	}
 
 	{
+		ev, err := bm.GetEntryBySlug("a-title", session)
+		if err != nil {
+			t.Fatalf("GetEntry() failed unexpectedly: %v", err)
+			return
+		}
+		if ev == nil {
+			t.Fatalf("GetEntryBySlug() returned nil")
+		}
+		if ev.Title() != "A Title" {
+			t.Fatalf("GetEntryBySlug() Incorrect title, returned %v", ev.Title())
+		}
+	}
+
+	{
+		ev, err := bm.GetEntryBySlug("a-title-archie", session)
+		if err != nil {
+			t.Fatalf("GetEntry() failed unexpectedly: %v", err)
+			return
+		}
+		if ev != nil {
+			t.Fatalf("GetEntryBySlug() should return nil")
+		}
+	}
+
+	{
 		eci, _ := bm.GetRecentEntries(10, session)
 		if len(eci) != 2 {
 			t.Fatalf("We expect 2 entries here, not %d", len(eci))
@@ -165,21 +190,21 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 			return
 		}
 		if ev.Title() != "Updated title" {
-			t.Fatalf("GetEntry() Incorrect name, returned %v", ev.Title())
+			t.Fatalf("UpdateEntry() Incorrect name, returned %v", ev.Title())
 		}
 	}
 
 	{
 		entrys, err := bm.GetRecentEntries(10, session)
 		if err != nil {
-			t.Fatalf("GetEntrys() failed unexpectedly: %v", err)
+			t.Fatalf("GetRecentEntries() failed unexpectedly: %v", err)
 			return
 		}
 		if entrys == nil {
-			t.Fatalf("GetEntrys() Did not return two entrys")
+			t.Fatalf("GetRecentEntries() Did not return two entrys")
 		}
 		if len(entrys) != 2 {
-			t.Fatalf("GetEntrys() Did not return two entrys. Returned %d", len(entrys))
+			t.Fatalf("GetRecentEntries() Did not return two entrys. Returned %d", len(entrys))
 		}
 		for _, e := range entrys {
 			fmt.Printf("Found %v\n", e.Date())
@@ -189,20 +214,20 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 	{
 		entrys, err := bm.GetFutureEntries(session)
 		if err != nil {
-			t.Fatalf("GetEntrys() failed unexpectedly: %v", err)
+			t.Fatalf("GetFutureEntries() failed unexpectedly: %v", err)
 			return
 		}
 		if entrys == nil {
-			t.Fatalf("GetUpcomingEntrys() Did not return one entry")
+			t.Fatalf("GetFutureEntries() Did not return one entry")
 		}
 		if len(entrys) != 1 {
-			t.Fatalf("GetEntrys() Did not return one entrys. Returned %d", len(entrys))
+			t.Fatalf("GetFutureEntries() Did not return one entrys. Returned %d", len(entrys))
 		}
 		if entrys[0].Date().Year() != 2100 {
-			t.Fatalf("GetEntrys() Did not return correct future entry. Returned  entry on %v, expected %v", entrys[0].Date(), entry2.Uuid())
+			t.Fatalf("GetFutureEntries() Did not return correct future entry. Returned  entry on %v, expected %v", entrys[0].Date(), entry2.Uuid())
 		}
 		if entrys[0].Uuid() != entry2.Uuid() {
-			t.Fatalf("GetEntrys() Did not return correct future entry. %s != %s", entrys[0].Uuid(), entry2.Uuid())
+			t.Fatalf("GetFutureEntries() Did not return correct future entry. %s != %s", entrys[0].Uuid(), entry2.Uuid())
 		}
 
 	}

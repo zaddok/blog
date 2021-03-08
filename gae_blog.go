@@ -185,6 +185,9 @@ func (em *GaeBlogManager) GetEntryBySlugCached(slug string, session security.Ses
 	if err != nil {
 		return nil, err
 	}
+	if entry == nil {
+		return nil, nil
+	}
 	em.entryCache.Set(entry.Uuid(), entry)
 	em.slugCache.Set(entry.Slug(), entry)
 
