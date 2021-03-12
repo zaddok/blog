@@ -21,6 +21,7 @@ func NewGaeBlogManager(client *datastore.Client, ctx context.Context, am securit
 		entryCache: gcache.New(200).LRU().Expiration(time.Second * 3600).Build(),
 		slugCache:  gcache.New(200).LRU().Expiration(time.Second * 3600).Build(),
 	}
+	am.AddCustomRoleType("User", "bk1", "Manage Blog Entries", "Create and update blog entries")
 	return s
 }
 

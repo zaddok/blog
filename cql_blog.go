@@ -20,6 +20,7 @@ func NewCqlBlogManager(cql *gocql.Session, am security.AccessManager, log log.Lo
 		entryCache: gcache.New(200).LRU().Expiration(time.Second * 3600).Build(),
 		slugCache:  gcache.New(200).LRU().Expiration(time.Second * 3600).Build(),
 	}
+	am.AddCustomRoleType("User", "bk1", "Manage Blog Entries", "Create and update blog entries")
 
 	rows := cql.Query(`
 create table if not exists blog_entry (
