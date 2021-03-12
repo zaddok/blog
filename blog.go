@@ -37,6 +37,7 @@ type BlogManager interface {
 	GetEntryCached(uuid string, session security.Session) (Entry, error)
 	GetEntryBySlug(slug string, session security.Session) (Entry, error)
 	GetEntryBySlugCached(slug string, session security.Session) (Entry, error)
+	GetEntries(session security.Session) ([]Entry, error)
 	GetRecentEntries(limit int, session security.Session) ([]Entry, error)
 	GetFutureEntries(session security.Session) ([]Entry, error)
 	GetEntriesByAuthor(personUuid string, session security.Session) ([]Entry, error)

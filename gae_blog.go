@@ -21,7 +21,9 @@ func NewGaeBlogManager(client *datastore.Client, ctx context.Context, am securit
 		entryCache: gcache.New(200).LRU().Expiration(time.Second * 3600).Build(),
 		slugCache:  gcache.New(200).LRU().Expiration(time.Second * 3600).Build(),
 	}
-	am.AddCustomRoleType("User", "bk1", "Manage Blog Entries", "Create and update blog entries")
+
+	activateBlogPlugin(am)
+
 	return s
 }
 
@@ -58,6 +60,44 @@ func (em *GaeBlogManager) GetEntry(uuid string, session security.Session) (Entry
 		}
 	}
 	return item, nil
+}
+
+func (em *GaeBlogManager) GetEntries(session security.Session) ([]Entry, error) {
+	var items []Entry
+	var err error
+
+	q := datastore.NewQuery("Entry").Namespace(session.Site()).Limit(2000)
+	it := em.client.Run(em.ctx, q)
+	for {
+		e := new(GaeEntry)
+		if _, err := it.Next(e); err == iterator.Done {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		if e.authorUuid != "" {
+			e.author, err = em.am.GetPersonCached(e.authorUuid, session)
+			if err != nil {
+				return nil, err
+			}
+		}
+		items = append(items, e)
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Date() != nil && items[j].Date() != nil {
+			return items[j].Date().Before(*items[i].Date())
+		}
+		if items[j].Date() != nil && items[i].Created() != nil {
+			return items[j].Date().Before(*items[i].Created())
+		}
+		if items[i].Date() != nil && items[j].Created() != nil {
+			return items[j].Created().Before(*items[i].Date())
+		}
+		return items[j].Created().Before(*items[i].Created())
+	})
+
+	return items[:], nil
 }
 
 func (em *GaeBlogManager) GetRecentEntries(limit int, session security.Session) ([]Entry, error) {

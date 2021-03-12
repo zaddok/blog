@@ -8,8 +8,10 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/gocql/gocql"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/zaddok/log"
 	"gitlab.com/montebo/security"
+	"golang.org/x/text/language"
 )
 
 func NewCqlBlogManager(cql *gocql.Session, am security.AccessManager, log log.Log) (*CqlBlogManager, error) {
@@ -51,7 +53,33 @@ create table if not exists blog_entry (
 		return nil, errors.New("blog_slug creation failed. " + err.Error())
 	}
 
+	activateBlogPlugin(am)
+
 	return s, nil
+}
+
+func activateBlogPlugin(am security.AccessManager) {
+	security.RegisterSecondaryMenuItem(security.ActionButton{
+		Title: "manage-blog",
+		Link:  "/blog/manage",
+		Roles: []string{"bk1"},
+	})
+
+	security.RegisterTranslations(language.English,
+		&i18n.Message{ID: "blog", Other: "Blog"},
+		&i18n.Message{ID: "manage-blog", Other: "Manage Blog"},
+	)
+
+	security.RegisterTranslations(language.TraditionalChinese,
+		&i18n.Message{ID: "blog", Other: "部落格"},
+		&i18n.Message{ID: "manage-blog", Other: "Manage 部落格"},
+	)
+
+	security.RegisterTranslations(language.SimplifiedChinese,
+		&i18n.Message{ID: "blog", Other: "博客"},
+		&i18n.Message{ID: "manage-blog", Other: "Manage 博客"},
+	)
+
 }
 
 type CqlBlogManager struct {
@@ -98,6 +126,49 @@ func (bm *CqlBlogManager) GetEntry(uuid string, session security.Session) (Entry
 	bm.slugCache.Set(entry.Slug(), entry)
 
 	return &entry, nil
+}
+
+func (bm *CqlBlogManager) GetEntries(session security.Session) ([]Entry, error) {
+	var items []Entry
+	var err error
+	now := time.Now()
+
+	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text, deleted from blog_entry where site=?", session.Site()).Iter()
+	entry := &GaeEntry{}
+	for rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text, &entry.deleted) {
+		if entry.date.Before(now) {
+			if entry.authorUuid != "" {
+				entry.author, err = bm.am.GetPersonCached(entry.authorUuid, session)
+				if err != nil {
+					return nil, err
+				}
+			}
+			items = append(items, entry)
+
+			bm.entryCache.Set(entry.Uuid(), entry)
+			bm.slugCache.Set(entry.Slug(), entry)
+		}
+	}
+
+	err = rows.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Date() != nil && items[j].Date() != nil {
+			return items[j].Date().Before(*items[i].Date())
+		}
+		if items[j].Date() != nil && items[i].Created() != nil {
+			return items[j].Date().Before(*items[i].Created())
+		}
+		if items[i].Date() != nil && items[j].Created() != nil {
+			return items[j].Created().Before(*items[i].Date())
+		}
+		return items[j].Created().Before(*items[i].Created())
+	})
+
+	return items[:], nil
 }
 
 func (bm *CqlBlogManager) GetRecentEntries(limit int, session security.Session) ([]Entry, error) {
