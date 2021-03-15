@@ -147,6 +147,7 @@ func (bm *CqlBlogManager) GetEntries(session security.Session) ([]Entry, error) 
 
 			bm.entryCache.Set(entry.Uuid(), entry)
 			bm.slugCache.Set(entry.Slug(), entry)
+			entry = &GaeEntry{}
 		}
 	}
 
@@ -190,6 +191,7 @@ func (bm *CqlBlogManager) GetRecentEntries(limit int, session security.Session) 
 
 			bm.entryCache.Set(entry.Uuid(), entry)
 			bm.slugCache.Set(entry.Slug(), entry)
+			entry = &GaeEntry{}
 		}
 	}
 
@@ -233,6 +235,7 @@ func (bm *CqlBlogManager) GetEntriesByAuthor(personUuid string, session security
 				}
 			}
 			items = append(items, entry)
+			entry = &GaeEntry{}
 		}
 	}
 
@@ -284,6 +287,7 @@ func (bm *CqlBlogManager) SearchEntries(query string, session security.Session) 
 			}
 		}
 		items = append(items, entry)
+		entry = &GaeEntry{}
 	}
 
 	err = rows.Close()
@@ -323,6 +327,7 @@ func (bm *CqlBlogManager) GetFutureEntries(session security.Session) ([]Entry, e
 				}
 			}
 			items = append(items, entry)
+			entry = &GaeEntry{}
 		}
 	}
 
