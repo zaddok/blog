@@ -110,11 +110,19 @@ func (e *GaeEntry) SetDeleted(deleted bool) {
 }
 
 func (e *GaeEntry) Created() *time.Time {
-	return e.updated
+	return e.created
+}
+
+func (e *GaeEntry) setCreated(created time.Time) {
+	e.created = &created
 }
 
 func (e *GaeEntry) Updated() *time.Time {
 	return e.updated
+}
+
+func (e *GaeEntry) setUpdated(updated time.Time) {
+	e.updated = &updated
 }
 
 func (e *GaeEntry) LoadKey(k *datastore.Key) error {
@@ -217,7 +225,7 @@ func (e *GaeEntry) Save() ([]datastore.Property, error) {
 	}
 
 	if e.updated != nil {
-		e.updated = &now
+		e.setUpdated(now)
 		props = append(props, datastore.Property{Name: "Updated", Value: e.updated})
 	}
 

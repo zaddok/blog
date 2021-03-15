@@ -474,6 +474,10 @@ func (bm *CqlBlogManager) AddEntry(entry Entry, session security.Session) error 
 		bulk.AddBoolItem("Deleted", false, true)
 	}
 
+	now := time.Now()
+	entry.setCreated(now)
+	entry.setUpdated(now)
+
 	// TODO: Technically should be in a transaction
 	if err := bm.am.AddEntityChangeLog(bulk, session); err != nil {
 		return err
@@ -577,15 +581,17 @@ func (bm *CqlBlogManager) UpdateEntry(entry Entry, session security.Session) err
 			return err
 		}
 
+		now := time.Now()
+		current.updated = &now
+
 		bm.slugCache.Remove(entry.Slug())
 		rows := bm.cql.Query(
-			"update blog_entry set title=?, slug=?, description=?, tags=?, date=?, created=?, updated=?, author=?, text=?, html=?, deleted=?, search_tags=? where site=? and uuid=?",
+			"update blog_entry set title=?, slug=?, description=?, tags=?, date=?, updated=?, author=?, text=?, html=?, deleted=?, search_tags=? where site=? and uuid=?",
 			current.Title(),
 			current.Slug(),
 			current.Description(),
 			current.Tags(),
 			current.Date(),
-			current.Created(),
 			current.Updated(),
 			current.AuthorUUID(),
 			current.Text(),

@@ -30,6 +30,9 @@ type Entry interface {
 	SetDeleted(deleted bool)
 
 	SearchTags() []string
+
+	setCreated(created time.Time)
+	setUpdated(updated time.Time)
 }
 
 type BlogManager interface {
