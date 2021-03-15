@@ -131,24 +131,21 @@ func (bm *CqlBlogManager) GetEntry(uuid string, session security.Session) (Entry
 func (bm *CqlBlogManager) GetEntries(session security.Session) ([]Entry, error) {
 	var items []Entry
 	var err error
-	now := time.Now()
 
 	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text, deleted from blog_entry where site=?", session.Site()).Iter()
 	entry := &GaeEntry{}
 	for rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text, &entry.deleted) {
-		if entry.date.Before(now) {
-			if entry.authorUuid != "" {
-				entry.author, err = bm.am.GetPersonCached(entry.authorUuid, session)
-				if err != nil {
-					return nil, err
-				}
+		if entry.authorUuid != "" {
+			entry.author, err = bm.am.GetPersonCached(entry.authorUuid, session)
+			if err != nil {
+				return nil, err
 			}
-			items = append(items, entry)
-
-			bm.entryCache.Set(entry.Uuid(), entry)
-			bm.slugCache.Set(entry.Slug(), entry)
-			entry = &GaeEntry{}
 		}
+		items = append(items, entry)
+
+		bm.entryCache.Set(entry.Uuid(), entry)
+		bm.slugCache.Set(entry.Slug(), entry)
+		entry = &GaeEntry{}
 	}
 
 	err = rows.Close()
