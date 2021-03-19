@@ -53,6 +53,12 @@ create table if not exists blog_entry (
 		return nil, errors.New("blog_slug creation failed. " + err.Error())
 	}
 
+	rows = cql.Query(`create index if not exists blog_entry_search on blog_entry (search_tags)`).Iter()
+	err = rows.Close()
+	if err != nil {
+		return nil, err
+	}
+
 	activateBlogPlugin(am)
 
 	return s, nil
@@ -129,6 +135,11 @@ func (bm *CqlBlogManager) GetEntry(uuid string, session security.Session) (Entry
 }
 
 func (bm *CqlBlogManager) GetEntries(session security.Session) ([]Entry, error) {
+
+	if session == nil {
+		return nil, errors.New("Invalid session object. Contact support.")
+	}
+
 	var items []Entry
 	var err error
 
@@ -170,6 +181,11 @@ func (bm *CqlBlogManager) GetEntries(session security.Session) ([]Entry, error) 
 }
 
 func (bm *CqlBlogManager) GetRecentEntries(limit int, session security.Session) ([]Entry, error) {
+
+	if session == nil {
+		return nil, errors.New("Invalid session object. Contact support.")
+	}
+
 	var items []Entry
 	var err error
 	now := time.Now()
@@ -216,7 +232,69 @@ func (bm *CqlBlogManager) GetRecentEntries(limit int, session security.Session) 
 	return items[:], nil
 }
 
+func (bm *CqlBlogManager) GetEntriesByTag(tag string, limit int, session security.Session) ([]Entry, error) {
+
+	if session == nil {
+		return nil, errors.New("Invalid session object. Contact support.")
+	}
+
+	tag = strings.ToLower(strings.TrimSpace(tag))
+	if tag == "" {
+		return nil, nil
+	}
+
+	var items []Entry
+	var err error
+	now := time.Now()
+
+	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text, deleted from blog_entry where site=? and search_tags contains ?", session.Site(), "tag:"+tag).Iter()
+	entry := &GaeEntry{}
+	for rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text, &entry.deleted) {
+		if entry.date.Before(now) {
+			if entry.authorUuid != "" {
+				entry.author, err = bm.am.GetPersonCached(entry.authorUuid, session)
+				if err != nil {
+					return nil, err
+				}
+			}
+			items = append(items, entry)
+
+			bm.entryCache.Set(entry.Uuid(), entry)
+			bm.slugCache.Set(entry.Slug(), entry)
+			entry = &GaeEntry{}
+		}
+	}
+
+	err = rows.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Date() != nil && items[j].Date() != nil {
+			return items[j].Date().Before(*items[i].Date())
+		}
+		if items[j].Date() != nil && items[i].Created() != nil {
+			return items[j].Date().Before(*items[i].Created())
+		}
+		if items[i].Date() != nil && items[j].Created() != nil {
+			return items[j].Created().Before(*items[i].Date())
+		}
+		return items[j].Created().Before(*items[i].Created())
+	})
+
+	if len(items) > limit {
+		return items[0:limit], nil
+	}
+	return items[:], nil
+}
+
 func (bm *CqlBlogManager) GetEntriesByAuthor(personUuid string, session security.Session) ([]Entry, error) {
+
+	if session == nil {
+		return nil, errors.New("Invalid session object. Contact support.")
+	}
+
 	var items []Entry
 	var err error
 	now := time.Now()
@@ -262,6 +340,11 @@ func (bm *CqlBlogManager) GetEntriesByAuthor(personUuid string, session security
 // to ensure users have permission to view each search entry. Search results
 // may include future unpublished blog articles.
 func (bm *CqlBlogManager) SearchEntries(query string, session security.Session) ([]Entry, error) {
+
+	if session == nil {
+		return nil, errors.New("Invalid session object. Contact support.")
+	}
+
 	var items []Entry
 	var err error
 
@@ -309,13 +392,18 @@ func (bm *CqlBlogManager) SearchEntries(query string, session security.Session) 
 
 }
 func (bm *CqlBlogManager) GetFutureEntries(session security.Session) ([]Entry, error) {
+
+	if session == nil {
+		return nil, errors.New("Invalid session object. Contact support.")
+	}
+
 	var items []Entry
 	var err error
 	now := time.Now()
 
-	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text from blog_entry where site=?", session.Site()).Iter()
+	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text, html, deleted from blog_entry where site=?", session.Site()).Iter()
 	entry := &GaeEntry{}
-	for rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text) {
+	for rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text, &entry.html, &entry.deleted) {
 		if entry.date.After(now) {
 			if entry.authorUuid != "" {
 				entry.author, err = bm.am.GetPersonCached(entry.authorUuid, session)
@@ -350,11 +438,16 @@ func (bm *CqlBlogManager) GetFutureEntries(session security.Session) ([]Entry, e
 }
 
 func (bm *CqlBlogManager) GetEntryBySlug(slug string, session security.Session) (Entry, error) {
+
+	if session == nil {
+		return nil, errors.New("Invalid session object. Contact support.")
+	}
+
 	var entry GaeEntry
 
-	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text from blog_entry where site=? and slug=?",
+	rows := bm.cql.Query("select uuid, title, slug, description, tags, date, created, updated, author, text, html, deleted from blog_entry where site=? and slug=?",
 		session.Site(), slug).Iter()
-	if !rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text) {
+	if !rows.Scan(&entry.uuid, &entry.title, &entry.slug, &entry.description, &entry.tags, &entry.date, &entry.created, &entry.updated, &entry.authorUuid, &entry.text, &entry.html, &entry.deleted) {
 		return nil, rows.Close()
 	}
 
@@ -379,6 +472,10 @@ func (bm *CqlBlogManager) GetEntryBySlug(slug string, session security.Session) 
 
 func (bm *CqlBlogManager) GetEntryCached(uuid string, session security.Session) (Entry, error) {
 
+	if session == nil {
+		return nil, errors.New("Invalid session object. Contact support.")
+	}
+
 	if uuid == "" {
 		return nil, nil
 	}
@@ -400,6 +497,10 @@ func (bm *CqlBlogManager) GetEntryCached(uuid string, session security.Session) 
 }
 
 func (bm *CqlBlogManager) GetEntryBySlugCached(slug string, session security.Session) (Entry, error) {
+
+	if session == nil {
+		return nil, errors.New("Invalid session object. Contact support.")
+	}
 
 	if slug == "" {
 		return nil, nil

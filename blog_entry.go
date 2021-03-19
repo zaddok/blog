@@ -40,12 +40,12 @@ func (e *GaeEntry) Title() string {
 
 func (e *GaeEntry) SetTitle(title string) {
 	e.title = title
-	e.slug = Slugify(title)
+	e.slug = security.Slugify(title)
 }
 
 func (e *GaeEntry) Slug() string {
 	if e.slug == "" && e.title != "" {
-		e.slug = Slugify(e.title)
+		e.slug = security.Slugify(e.title)
 	}
 	return e.slug
 }

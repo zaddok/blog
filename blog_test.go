@@ -135,7 +135,7 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 	{
 		ev, err := bm.GetEntryBySlug("a-title", session)
 		if err != nil {
-			t.Fatalf("GetEntry() failed unexpectedly: %v", err)
+			t.Fatalf("GetEntryBySlug() failed unexpectedly: %v", err)
 			return
 		}
 		if ev == nil {
@@ -149,7 +149,7 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 	{
 		ev, err := bm.GetEntryBySlug("a-title-archie", session)
 		if err != nil {
-			t.Fatalf("GetEntry() failed unexpectedly: %v", err)
+			t.Fatalf("GetEntryBySlug() failed unexpectedly: %v", err)
 			return
 		}
 		if ev != nil {

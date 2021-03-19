@@ -43,6 +43,7 @@ type BlogManager interface {
 	GetEntries(session security.Session) ([]Entry, error)
 	GetRecentEntries(limit int, session security.Session) ([]Entry, error)
 	GetFutureEntries(session security.Session) ([]Entry, error)
+	GetEntriesByTag(tag string, limit int, session security.Session) ([]Entry, error)
 	GetEntriesByAuthor(personUuid string, session security.Session) ([]Entry, error)
 	SearchEntries(query string, session security.Session) ([]Entry, error)
 

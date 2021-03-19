@@ -445,3 +445,34 @@ func (em *GaeBlogManager) SearchEntries(query string, session security.Session) 
 
 	return results, nil
 }
+
+func (em *GaeBlogManager) GetEntriesByTag(tag string, limit int, session security.Session) ([]Entry, error) {
+
+	tag = strings.ToLower(strings.TrimSpace(tag))
+	if tag == "" {
+		return nil, nil
+	}
+
+	var err error
+	results := make([]Entry, 0)
+
+	q := datastore.NewQuery("Entry").Namespace(session.Site()).Filter("SearchTags =", "tag:"+tag).Limit(limit)
+	it := em.client.Run(em.ctx, q)
+	for {
+		e := new(GaeEntry)
+		if _, err := it.Next(e); err == iterator.Done {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		if e.authorUuid != "" {
+			e.author, err = em.am.GetPersonCached(e.authorUuid, session)
+			if err != nil {
+				return nil, err
+			}
+		}
+		results = append(results, e)
+	}
+
+	return results, nil
+}
