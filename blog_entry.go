@@ -40,7 +40,9 @@ func (e *GaeEntry) Title() string {
 
 func (e *GaeEntry) SetTitle(title string) {
 	e.title = title
-	e.slug = security.Slugify(title)
+	if e.slug == "" {
+		e.slug = security.Slugify(title)
+	}
 }
 
 func (e *GaeEntry) Slug() string {
