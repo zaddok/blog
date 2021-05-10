@@ -130,8 +130,8 @@ func (bm *CqlBlogManager) GetEntry(uuid string, session security.Session) (Entry
 		}
 	}
 
-	bm.entryCache.Set(entry.Uuid(), entry)
-	bm.slugCache.Set(entry.Slug(), entry)
+	bm.entryCache.Set(entry.Uuid(), &entry)
+	bm.slugCache.Set(entry.Slug(), &entry)
 
 	return &entry, nil
 }
@@ -466,8 +466,8 @@ func (bm *CqlBlogManager) GetEntryBySlug(slug string, session security.Session) 
 		}
 	}
 
-	bm.entryCache.Set(entry.Uuid(), entry)
-	bm.slugCache.Set(entry.Slug(), entry)
+	bm.entryCache.Set(entry.Uuid(), &entry)
+	bm.slugCache.Set(entry.Slug(), &entry)
 
 	return &entry, nil
 }
@@ -729,8 +729,8 @@ func (bm *CqlBlogManager) UpdateEntry(entry Entry, session security.Session) err
 			return err
 		}
 
-		bm.slugCache.Remove(entry.Slug())
-		bm.slugCache.Set(entry.Slug(), entry)
+		bm.slugCache.Remove(current.Slug())
+		bm.slugCache.Set(current.Slug(), current)
 	}
 
 	return nil
