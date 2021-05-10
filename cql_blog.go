@@ -562,11 +562,11 @@ func (bm *CqlBlogManager) AddEntry(entry Entry, session security.Session) error 
 		bulk.AddItem("Text", "", entry.Text())
 	}
 
-	if entry.Text() != "" {
+	if entry.Thumbnail() != "" {
 		bulk.AddItem("Thumbnail", "", entry.Thumbnail())
 	}
 
-	if entry.Text() != "" {
+	if entry.Cover() != "" {
 		bulk.AddItem("Cover", "", entry.Cover())
 	}
 
