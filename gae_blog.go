@@ -258,6 +258,14 @@ func (em *GaeBlogManager) AddEntry(entry Entry, session security.Session) error 
 		bulk.AddItem("Description", "", entry.Description())
 	}
 
+	if entry.Thumbnail() != "" {
+		bulk.AddItem("Thumbnail", "", entry.Thumbnail())
+	}
+
+	if entry.Cover() != "" {
+		bulk.AddItem("Cover", "", entry.Cover())
+	}
+
 	if entry.Slug() != "" {
 		bulk.AddItem("Slug", "", entry.Slug())
 	}
@@ -330,6 +338,16 @@ func (em *GaeBlogManager) UpdateEntry(entry Entry, session security.Session) err
 	if entry.Description() != current.Description() {
 		bulk.AddItem("Description", current.Description(), entry.Description())
 		current.SetDescription(entry.Description())
+	}
+
+	if entry.Thumbnail() != current.Thumbnail() {
+		bulk.AddItem("Thumbnail", current.Thumbnail(), entry.Thumbnail())
+		current.SetThumbnail(entry.Thumbnail())
+	}
+
+	if entry.Cover() != current.Cover() {
+		bulk.AddItem("Cover", current.Cover(), entry.Cover())
+		current.SetCover(entry.Cover())
 	}
 
 	if entry.Text() != current.Text() {

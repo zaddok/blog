@@ -252,6 +252,8 @@ gitlab.com/montebo/security v0.127.18 h1:HwR5JTL9rJy+pv2sneKMEqWeW6gX84U432vZrBs
 gitlab.com/montebo/security v0.127.18/go.mod h1:mBDvP4ZCJU2v2g3PQ7RENH4/dWjYgwmyb89CzOYKdN4=
 gitlab.com/montebo/security v0.127.24 h1:4UOHDR7NmjthBjE7TU4tXkqydDt4NNMPml/vd+6dHZc=
 gitlab.com/montebo/security v0.127.24/go.mod h1:mBDvP4ZCJU2v2g3PQ7RENH4/dWjYgwmyb89CzOYKdN4=
+gitlab.com/montebo/security v0.129.12 h1:qKDHK/gN8Lba0GBVTP6zhbsKyivkfH1mKzdLhsCQgkY=
+gitlab.com/montebo/security v0.129.12/go.mod h1:mBDvP4ZCJU2v2g3PQ7RENH4/dWjYgwmyb89CzOYKdN4=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0 h1:C9hSCOW830chIVkdja34wa6Ky+IzWllkUinR+BtRZd4=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=

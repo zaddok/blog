@@ -11,6 +11,8 @@ type Entry interface {
 	Title() string
 	Slug() string
 	Description() string
+	Thumbnail() string
+	Cover() string
 	Tags() []string
 	Date() *time.Time
 	Author() security.Person
@@ -23,6 +25,8 @@ type Entry interface {
 
 	SetTitle(title string)
 	SetDescription(description string)
+	SetCover(cover string)
+	SetThumbnail(thumbnail string)
 	SetTags(tags []string)
 	SetDate(date time.Time)
 	SetAuthor(author security.Person)

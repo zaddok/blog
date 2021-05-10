@@ -13,7 +13,7 @@ require (
 	github.com/xuri/efp v0.0.0-20210311002341-9c6784cb2d17 // indirect
 	github.com/zaddok/base62 v0.0.1
 	github.com/zaddok/log v0.0.0-20181204025159-298eaace4328
-	gitlab.com/montebo/security v0.127.24
+	gitlab.com/montebo/security v0.129.12
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/oauth2 v0.0.0-20210311163135-5366d9dc1934 // indirect

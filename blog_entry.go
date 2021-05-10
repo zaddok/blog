@@ -15,6 +15,8 @@ type GaeEntry struct {
 	title       string
 	slug        string
 	description string
+	thumbnail   string
+	cover       string
 	tags        []string
 	date        *time.Time
 	authorUuid  string
@@ -54,6 +56,14 @@ func (e *GaeEntry) Slug() string {
 
 func (e *GaeEntry) Description() string {
 	return e.description
+}
+
+func (e *GaeEntry) Thumbnail() string {
+	return e.thumbnail
+}
+
+func (e *GaeEntry) Cover() string {
+	return e.cover
 }
 
 func (e *GaeEntry) SetDescription(description string) {
@@ -97,6 +107,14 @@ func (e *GaeEntry) Text() string {
 
 func (e *GaeEntry) SetText(text string) {
 	e.text = text
+}
+
+func (e *GaeEntry) SetThumbnail(thumbnail string) {
+	e.thumbnail = thumbnail
+}
+
+func (e *GaeEntry) SetCover(cover string) {
+	e.cover = cover
 }
 
 func (e *GaeEntry) Html() string {
@@ -146,6 +164,12 @@ func (e *GaeEntry) Load(ps []datastore.Property) error {
 		case "Description":
 			e.description = i.Value.(string)
 			break
+		case "Thumbnail":
+			e.thumbnail = i.Value.(string)
+			break
+		case "Cover":
+			e.cover = i.Value.(string)
+			break
 		case "Tags":
 			e.tags = strings.Split(i.Value.(string), "|")
 			break
@@ -194,6 +218,16 @@ func (e *GaeEntry) Save() ([]datastore.Property, error) {
 		{
 			Name:    "Description",
 			Value:   e.description,
+			NoIndex: true,
+		},
+		{
+			Name:    "Thumbnail",
+			Value:   e.thumbnail,
+			NoIndex: true,
+		},
+		{
+			Name:    "Cover",
+			Value:   e.cover,
 			NoIndex: true,
 		},
 		{

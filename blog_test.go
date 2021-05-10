@@ -74,6 +74,8 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 	entry0 := bm.NewEntry()
 	entry0.SetTitle("A Title")
 	entry0.SetDescription("Simple description")
+	entry0.SetCover("cover.jpg")
+	entry0.SetThumbnail("thumbnail.jpg")
 	entry0.SetText("Does _this_ blog entry need some *text*?")
 	entry0.SetDate(*StringToDatePointer("2000/1/1"))
 	entry0.SetAuthor(p1)
@@ -100,6 +102,8 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 	entry2 := bm.NewEntry()
 	entry2.SetTitle("Second entry Luke 1:1-2")
 	entry2.SetDescription("Location 2")
+	entry2.SetCover("coverX.jpg")
+	entry2.SetThumbnail("thumbnailX.jpg")
 	entry2.SetText("Sample _text_ for blog.")
 	entry2.SetDate(*StringToDatePointer("2100/1/1"))
 	entry2.SetAuthor(p3)
@@ -116,7 +120,10 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 			return
 		}
 		if ev.Title() != entry2.Title() {
-			t.Fatalf("GetEntry() Incorrect name, returned %v", ev.Title())
+			t.Fatalf("GetEntry() Incorrect title, returned %v", ev.Title())
+		}
+		if ev.Cover() != entry2.Cover() {
+			t.Fatalf("GetEntry() Incorrect cover, returned %v", ev.Cover())
 		}
 		if ev.Description() != entry2.Description() {
 			t.Fatalf("GetEntrys() Incorrect description, returned %v", ev.Description())
@@ -174,6 +181,9 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 			t.Fatalf("GetEntry() Incorrect uuid, returned %v", ev.Uuid())
 		}
 		ev.SetTitle("Updated title")
+		ev.SetCover("coverV.jpg")
+		ev.SetText("t2")
+		ev.SetThumbnail("thumbnailV.jpg")
 		ev.SetTags([]string{"z", "x", "y"})
 		err = bm.UpdateEntry(ev, session)
 		if err != nil {
@@ -190,7 +200,16 @@ func testBlogEntry(am security.AccessManager, bm BlogManager, t *testing.T) {
 			return
 		}
 		if ev.Title() != "Updated title" {
-			t.Fatalf("UpdateEntry() Incorrect name, returned %v", ev.Title())
+			t.Fatalf("UpdateEntry() Incorrect title, returned %v", ev.Title())
+		}
+		if ev.Text() != "t2" {
+			t.Fatalf("UpdateEntry() Incorrect title, returned %v", ev.Text())
+		}
+		if ev.Cover() != "coverV.jpg" {
+			t.Fatalf("UpdateEntry() Incorrect cover, returned %v", ev.Cover())
+		}
+		if ev.Thumbnail() != "thumbnailV.jpg" {
+			t.Fatalf("%s UpdateEntry() Incorrect thumbnail, returned %v", am.Type(), ev.Thumbnail())
 		}
 	}
 
