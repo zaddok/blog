@@ -12,7 +12,7 @@ require (
 	github.com/stripe/stripe-go/v71 v71.48.0 // indirect
 	github.com/zaddok/base62 v0.0.3
 	github.com/zaddok/log v0.0.0-20181204025159-298eaace4328
-	gitlab.com/montebo/security v0.131.14
+	gitlab.com/montebo/security v0.131.15
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/oauth2 v0.0.0-20210311163135-5366d9dc1934 // indirect
 	golang.org/x/text v0.3.6

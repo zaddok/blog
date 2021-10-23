@@ -27,7 +27,7 @@ func TestBlogEntry(t *testing.T) {
 
 	{
 		l.Debug("CQL TestBlogEntry")
-		am, cql, err := security.NewCqlAccessManager(TestCqlKeyspace, testCassandraHostname, l)
+		am, cql, err := security.NewCqlAccessManager(TestCqlKeyspace, testCassandraHostname, "", time.Now().Location(), l)
 		if err != nil {
 			t.Fatalf("NewCqlAccessManager() failed: %v", err)
 		}
