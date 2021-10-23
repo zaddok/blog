@@ -2,6 +2,7 @@ package blog
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -68,9 +69,10 @@ create table if not exists blog_entry (
 
 func activateBlogPlugin(am security.AccessManager) {
 	security.RegisterSecondaryMenuItem(security.ActionButton{
-		Title: "manage-blog",
-		Link:  "/blog/manage",
-		Roles: []string{"bk1"},
+		Title:     "manage-blog",
+		Link:      "/blog/manage",
+		Roles:     []string{"bk1"},
+		SortOrder: 200,
 	})
 
 	security.RegisterTranslations(language.English,
@@ -510,6 +512,7 @@ func (bm *CqlBlogManager) GetEntryBySlugCached(slug string, session security.Ses
 
 	v, _ := bm.slugCache.Get(slug)
 	if v != nil {
+		fmt.Println(v)
 		entry := v.(Entry)
 		return entry, nil
 	}
@@ -730,7 +733,7 @@ func (bm *CqlBlogManager) UpdateEntry(entry Entry, session security.Session) err
 		}
 
 		bm.slugCache.Remove(current.Slug())
-		bm.slugCache.Set(current.Slug(), current)
+		bm.slugCache.Set(current.Slug(), &current)
 	}
 
 	return nil
